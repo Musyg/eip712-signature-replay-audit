@@ -1,5 +1,7 @@
 # EIP-712 Signature Replay (Malleability), Demonstration Security Review
 
+![tests](https://github.com/Musyg/eip712-signature-replay-audit/actions/workflows/ci.yml/badge.svg)
+
 A self-contained demonstration of a smart-contract security review: a deliberately
 vulnerable gasless-claim contract whose replay guard keys on the signature bytes, the
 ECDSA-malleability double-spend it allows (proven with a passing
