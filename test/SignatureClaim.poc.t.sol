@@ -28,27 +28,29 @@ contract SignatureClaimPoC is Test {
         return keccak256(abi.encodePacked("\x19\x01", vault.DOMAIN_SEPARATOR(), structHash));
     }
 
-    /// The authorizer signs ONE claim of 1000. Malleability lets a relayer execute it twice.
-    function test_malleability_doubleSpend() public {
+    /// Same scenario as the master branch. Both the malleable twin and an exact replay
+    /// are now rejected, so the authorizer's single signed claim pays out exactly once.
+    function test_malleability_isBlocked() public {
         uint256 amount = 1_000 ether;
         bytes32 digest = _digest(bob, amount);
         (uint8 v, bytes32 r, bytes32 s) = vm.sign(authorizerPk, digest);
 
-        // Legitimate relay.
         vault.claim(bob, amount, v, r, s);
         assertEq(token.balanceOf(bob), amount, "first claim paid");
 
-        // Malleable twin: same digest, same signer, different (s, v) encoding.
+        // Malleable twin: high-s form is rejected by the EIP-2 check.
         bytes32 s2 = bytes32(N - uint256(s));
         uint8 v2 = v == 27 ? 28 : 27;
-        assertEq(ecrecover(digest, v2, r, s2), authorizer, "twin recovers the authorizer");
-
-        // Replay passes: usedSig keyed on bytes, not on the message.
+        assertEq(ecrecover(digest, v2, r, s2), authorizer, "twin still recovers signer");
+        vm.expectRevert(bytes("malleable signature"));
         vault.claim(bob, amount, v2, r, s2);
 
-        assertEq(token.balanceOf(bob), 2 * amount, "claim executed twice");
+        // Exact replay of the original is rejected by digest tracking.
+        vm.expectRevert(bytes("claim already executed"));
+        vault.claim(bob, amount, v, r, s);
+
+        assertEq(token.balanceOf(bob), amount, "no double spend");
         console2.log("authorizer signed (wei):", amount);
         console2.log("bob received      (wei):", token.balanceOf(bob));
-        console2.log("net theft         (wei):", token.balanceOf(bob) - amount);
     }
 }
