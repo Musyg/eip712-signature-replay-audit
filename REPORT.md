@@ -86,6 +86,24 @@ privilege, and the only precondition is observing one relayable signature.
 
 ---
 
+## Informational, Gas & Non-Critical
+
+## I-01, DOMAIN_SEPARATOR cached without chain-fork handling (Informational)
+
+`DOMAIN_SEPARATOR` is computed once in the constructor (L23-31) and stored `immutable`. If the chain forks and `block.chainid` changes, the cached separator no longer matches the active chain, so legitimately re-signed messages fail to verify. Recompute the separator when `block.chainid` differs from the deploy-time value.
+
+## N-01, claim emits no event (Non-Critical)
+
+`claim` (L34) releases tokens without emitting any event, leaving relayers and off-chain indexers unable to track executed claims. Emit a `Claimed(to, amount, sigKey)` event before the transfer.
+
+## I-02, authorizer not validated in constructor (Informational)
+
+The constructor (L20-21) does not check `_authorizer != address(0)`. With a zero authorizer, an invalid signature recovering to `address(0)` is only stopped by the `signer != address(0)` guard; validating the authorizer at construction makes the trust assumption explicit.
+
+## G-01, require strings cost more than custom errors (Gas)
+
+The three `require` reason strings (L36, L41, L44) are more expensive to deploy and revert with than custom errors on Solidity 0.8.34. Replace them with `error` declarations and `revert`.
+
 ## Scope and disclaimer
 
 `SignatureClaim` is intentionally vulnerable code written to demonstrate audit methodology
